@@ -17,15 +17,14 @@ import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Joystick;
-import edu.wpi.first.wpilibj.SerialPort;
 import edu.wpi.first.wpilibj.Solenoid;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj.SPI;
 
-
-
+		
 public class Robot extends IterativeRobot {
 	
 	
@@ -54,7 +53,8 @@ public class Robot extends IterativeRobot {
 	Joystick operatorBoard = new Joystick(1);
 	boolean [] _operatorBoardButtons = {false,false,false,false,false,false,false,false};
 	
-	
+	Joystick operatorJoy = new Joystick(2);
+	boolean [] _operatorJoystickButtons = {false,false,false,false,false,false,false,false};
 	
 	/* Defines Pneumatic Solenoids */
 	Solenoid armClamperino = new Solenoid(0);
@@ -80,7 +80,7 @@ public class Robot extends IterativeRobot {
 	Timer autoTimer = new Timer();
 	DigitalInput bottomLimit = new DigitalInput(0);
 	DigitalInput topLimit = new DigitalInput(3);
-	AHRS gyroMXP = new AHRS(SerialPort.Port.kMXP);
+	AHRS gyroMXP = new AHRS(SPI.Port.kMXP);
 	private String gameData;
 
 	
@@ -88,7 +88,9 @@ public class Robot extends IterativeRobot {
 	@Override
 	public void robotInit() {
 		
-		
+	/* Sensors */
+		gyroMXP.reset();
+
 		
 	/* Defines the autonomous chooser */
 		m_chooser.addDefault("Default Auto", kDefaultAuto);
@@ -207,21 +209,23 @@ public class Robot extends IterativeRobot {
 		for(int i=1;i<_joystickButtons.length;++i)
 			joyBtns[i] = driverJoy.getRawButton(i); 
 
+		boolean [] operatorBtns= new boolean [_operatorBoardButtons.length];
+		for(int i=1;i<_operatorBoardButtons.length;++i)
+			operatorBtns[i] = operatorJoy.getRawButton(i); 
 		
 		
-		
-		if (joyBtns[1] == true) {
+		if (operatorBtns[2] == true) {
 			armClamperino.set(true);
-		} else if (joyBtns[2] == true) {
+		} else if (operatorBtns[1] == true) {
 			armClamperino.set(false);
 		}
 		
 		
 		
 		
-		if (joyBtns[3] == true && bottomLimit.get() == true) {
+		if (operatorBtns[3] == true && bottomLimit.get() == true) {
 			cubeElevatorTalon.set(1);
-		}else if (joyBtns[4] == true && topLimit.get() == true) {
+		}else if (operatorBtns[4] == true && topLimit.get() == true) {
 			cubeElevatorTalon.set(-1);
 		}else {
 			cubeElevatorTalon.set(0);
@@ -229,12 +233,22 @@ public class Robot extends IterativeRobot {
 		
 		
 		
-		if (joyBtns[5] == true) {
+		
+		if (operatorBtns[6] == true) {
 			armExtenderTalon.set(1);
-		}else if (joyBtns[6] == true) {
+		}else if (operatorBtns[5] == true) {
 			armExtenderTalon.set(-1);
 		}else {
 			armExtenderTalon.set(0);
+		}
+		
+		
+		if (joyBtns[3] == true) {
+			climberTalon.set(-1);
+		}else if (joyBtns[4] == true) {
+			climberTalon.set(1);
+		}else {
+			climberTalon.set(0);
 		}
 		
 	}
@@ -250,8 +264,11 @@ public class Robot extends IterativeRobot {
 	@Override
 	public void robotPeriodic() {
 		Timer.delay(0.020);
-		SmartDashboard.putNumber("Gyro", gyroMXP.getRawGyroZ());
+		SmartDashboard.putNumber("Gyro Roll:", gyroMXP.getRoll());
+		SmartDashboard.putNumber("Gyro Pitch:", gyroMXP.getPitch());
+		SmartDashboard.putNumber("Gyro Yaw:", gyroMXP.getYaw());
 		SmartDashboard.putBoolean("Gyro Connected?", gyroMXP.isConnected());
 		SmartDashboard.putBoolean("Gyro is calibarting?", gyroMXP.isCalibrating());
+		SmartDashboard.putNumber("Stuff", gyroMXP.getAngle());
 	}
 }
