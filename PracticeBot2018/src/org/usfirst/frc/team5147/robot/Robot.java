@@ -83,6 +83,7 @@ public class Robot extends IterativeRobot {
 	AHRS gyroMXP = new AHRS(SPI.Port.kMXP);
 	private String gameData;
 
+
 	
 	
 	@Override
@@ -138,17 +139,16 @@ public class Robot extends IterativeRobot {
 				gameData = DriverStation.getInstance().getGameSpecificMessage();
 			}
 		
-			
-			
-		/* This code sets up the Buttons for the Operator Board during autonomous */
-			boolean [] brdBtnsAuto= new boolean [_operatorBoardButtons.length];
-		for(int i=1;i<_joystickButtons.length;++i)
-			brdBtnsAuto[i] = driverJoy.getRawButton(i);
+	
 		
 		
 		
 		switch (m_autoSelected) {
 			case kCustomAuto:
+				_drive.setSafetyEnabled(false);
+				_drive.arcadeDrive(.75, 0);
+				Timer.delay(2);
+				_drive.arcadeDrive(0, 0);
 				break;
 			case kDefaultAuto:
 			default:
