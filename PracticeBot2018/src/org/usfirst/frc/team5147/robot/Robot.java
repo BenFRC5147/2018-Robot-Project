@@ -17,21 +17,28 @@ import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Joystick;
+import edu.wpi.first.wpilibj.PIDController;
+import edu.wpi.first.wpilibj.PIDOutput;
 import edu.wpi.first.wpilibj.Solenoid;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
+import edu.wpi.first.wpilibj.livewindow.LiveWindow;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.SPI;
 
+
 		
-public class Robot extends IterativeRobot {
+public class Robot extends IterativeRobot implements PIDOutput{
 	
+
 	
+
 	
 	/* Defines the autonomous chooser */
 	private static final String kDefaultAuto = "Default";
-	private static final String kCustomAuto = "My Auto";
+	private static final String kDriveStraightAuto = "Drive Straight - No Sensors";
+	private static final String kCubeAuto = "Cube Auto";
 	private String m_autoSelected;
 	private SendableChooser<String> m_chooser = new SendableChooser<>();
 
@@ -50,10 +57,10 @@ public class Robot extends IterativeRobot {
 	Joystick driverJoy = new Joystick(0);
 	boolean [] _joystickButtons = {false,false,false,false,false,false,false,false,false,false,false,false};
 	
-	Joystick operatorBoard = new Joystick(1);
+	Joystick operatorBoard = new Joystick(2);
 	boolean [] _operatorBoardButtons = {false,false,false,false,false,false,false,false};
 	
-	Joystick operatorJoy = new Joystick(2);
+	Joystick operatorJoy = new Joystick(1);
 	boolean [] _operatorJoystickButtons = {false,false,false,false,false,false,false,false};
 	
 	/* Defines Pneumatic Solenoids */
@@ -82,20 +89,37 @@ public class Robot extends IterativeRobot {
 	DigitalInput topLimit = new DigitalInput(3);
 	AHRS gyroMXP = new AHRS(SPI.Port.kMXP);
 	private String gameData;
+	PIDController turnController;
+	double rotateToAngleRate;
+	static final double kP = 0.03;
+	static final double kI = 0.00;
+	static final double kD = 0.00;
+	static final double kF = 0.00;
+	static final double kToleranceDegrees = 2.0f;
+	static final double kTargetAngleDegrees = 90.0f;
 
 
 	
 	
+	@SuppressWarnings("deprecation")
 	@Override
 	public void robotInit() {
 		
 	/* Sensors */
 		gyroMXP.reset();
-
+		turnController = new PIDController(kP, kI, kD, kF, gyroMXP, this);
+		turnController.setInputRange(-180.0f, 180.0f);
+		turnController.setOutputRange(-1.0, 1.0);
+		turnController.setAbsoluteTolerance(kToleranceDegrees);
+		turnController.setContinuous(true);
+		turnController.disable();
 		
+		LiveWindow.addActuator("DriveSystem", "RotateController", turnController);
+
 	/* Defines the autonomous chooser */
 		m_chooser.addDefault("Default Auto", kDefaultAuto);
-		m_chooser.addObject("My Auto", kCustomAuto);
+		m_chooser.addObject("Drive Straight - No Sensors", kDriveStraightAuto);
+		m_chooser.addObject("Cube Auto", kCubeAuto);
 		SmartDashboard.putData("Auto choices", m_chooser);
 		
 		
@@ -132,28 +156,58 @@ public class Robot extends IterativeRobot {
 	@Override
 	public void autonomousPeriodic() {
 		
+		/* Defines the autonomous selector switch board */
+		boolean [] operatorBoardBtns= new boolean [_operatorBoardButtons.length];
+		for(int i=1;i<_operatorBoardButtons.length;++i)
+			operatorBoardBtns[i] = operatorBoard.getRawButton(i); 
 		
 		
 		/* The following code confirms that we have the proper switch locations */
 			while (gameData.isEmpty() == true) {
 				gameData = DriverStation.getInstance().getGameSpecificMessage();
 			}
+			
+			if(operatorBoardBtns[1] == true) {
+				m_autoSelected = kDriveStraightAuto;
+			}else if(operatorBoardBtns[2] == true) {
+				m_autoSelected = kCubeAuto;
+			}
 		
 	
+			
 		
 		
 		
 		switch (m_autoSelected) {
-			case kCustomAuto:
+			case kDriveStraightAuto:
 				_drive.setSafetyEnabled(false);
 				_drive.arcadeDrive(.75, 0);
-				Timer.delay(2);
+				Timer.delay(5);
 				_drive.arcadeDrive(0, 0);
+				Timer.delay(10);
 				break;
 			case kDefaultAuto:
 			default:
 				/* Default Auto, which does nothing, for safety */
 				break;
+			case kCubeAuto:
+				_drive.setSafetyEnabled(false);
+				_drive.arcadeDrive(1, 0);
+				Timer.delay(0.1);
+				_drive.arcadeDrive(0, 0);
+				Timer.delay(1);
+				armClamperino.set(true);
+				Timer.delay(0.2);
+				cubeElevatorTalon.set(-1);
+				Timer.delay(1.5);
+				cubeElevatorTalon.set(0);
+				Timer.delay(13);
+				if (gameData.charAt(0) == 'L') {
+					/* Code for our switch on left */
+				} else if(gameData.charAt(0) == 'R') {
+					/* Code for our switch on right */
+				}
+				
 		}
 	}
 
@@ -209,8 +263,8 @@ public class Robot extends IterativeRobot {
 		for(int i=1;i<_joystickButtons.length;++i)
 			joyBtns[i] = driverJoy.getRawButton(i); 
 
-		boolean [] operatorBtns= new boolean [_operatorBoardButtons.length];
-		for(int i=1;i<_operatorBoardButtons.length;++i)
+		boolean [] operatorBtns= new boolean [_operatorJoystickButtons.length];
+		for(int i=1;i<_operatorJoystickButtons.length;++i)
 			operatorBtns[i] = operatorJoy.getRawButton(i); 
 		
 		
@@ -270,5 +324,12 @@ public class Robot extends IterativeRobot {
 		SmartDashboard.putBoolean("Gyro Connected?", gyroMXP.isConnected());
 		SmartDashboard.putBoolean("Gyro is calibarting?", gyroMXP.isCalibrating());
 		SmartDashboard.putNumber("Stuff", gyroMXP.getAngle());
+	}
+
+
+	@Override
+	public void pidWrite(double output) {
+		rotateToAngleRate = output;
+		
 	}
 }
